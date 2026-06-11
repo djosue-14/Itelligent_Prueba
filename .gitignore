@@ -1,3 +1,7 @@
+## SQLite auxiliary files
+*.db-shm
+*.db-wal
+
 ## .NET / C#
 bin/
 obj/

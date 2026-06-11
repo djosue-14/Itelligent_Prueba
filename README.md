@@ -1,6 +1,6 @@
 # Itelligent — Plataforma de Publicación de Artículos
 
-Plataforma web para publicar, leer y comentar artículos. Construida con .NET 10, Clean Architecture, SQLite, JWT y Bootstrap 5.
+Plataforma web para publicar, leer y comentar artículos. Construida con .NET 8, Clean Architecture, SQLite, JWT y Bootstrap 5.
 
 ---
 

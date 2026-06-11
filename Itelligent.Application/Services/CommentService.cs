@@ -6,7 +6,7 @@ using Itelligent.Domain.Interfaces;
 
 namespace Itelligent.Application.Services;
 
-public class CommentService(ICommentRepository commentRepository, IArticleRepository articleRepository, IMapper mapper)
+public class CommentService(ICommentRepository commentRepository, IArticleRepository articleRepository, IUserRepository userRepository, IMapper mapper)
 {
     public async Task<CommentDto> AddCommentAsync(int articleId, int userId, CreateCommentDto dto)
     {
@@ -23,6 +23,9 @@ public class CommentService(ICommentRepository commentRepository, IArticleReposi
 
         await commentRepository.AddAsync(comment);
         await commentRepository.SaveChangesAsync();
+
+        comment.User = await userRepository.GetByIdAsync(userId)
+            ?? throw new NotFoundException($"User {userId} not found.");
 
         return mapper.Map<CommentDto>(comment);
     }
