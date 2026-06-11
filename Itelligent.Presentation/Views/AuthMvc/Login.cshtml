@@ -1,0 +1,131 @@
+@{
+    ViewData["Title"] = "Iniciar Sesión";
+    Layout = "_Layout";
+}
+
+<div class="row justify-content-center mt-3">
+    <div class="col-md-6 col-lg-5">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-primary">Bienvenido al Sistema de Publicación de Artículos</h2>
+        </div>
+
+        <div id="login-alert" class="alert d-none"></div>
+
+        <form id="login-form">
+            <div class="mb-3 row">
+                <label for="login-username" class="col-sm-4 col-form-label text-end">Usuario</label>
+                <div class="col-sm-8">
+                    <input type="text" class="form-control" id="login-username" required />
+                </div>
+            </div>
+            <div class="mb-4 row">
+                <label for="login-password" class="col-sm-4 col-form-label text-end">Contraseña</label>
+                <div class="col-sm-8">
+                    <input type="password" class="form-control" id="login-password" required />
+                </div>
+            </div>
+            <div class="d-flex justify-content-center gap-3">
+                <button type="submit" class="btn btn-primary px-4">Iniciar sesión</button>
+                <button type="button" class="btn btn-outline-primary px-4"
+                        data-bs-toggle="modal" data-bs-target="#registerModal">
+                    Regístrate
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Registro de nuevo usuario -->
+<div class="modal fade" id="registerModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-primary">Registro de nuevo usuario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4">
+                <div id="register-alert" class="alert d-none"></div>
+                <div class="mb-3 row">
+                    <label class="col-sm-5 col-form-label text-end">Usuario</label>
+                    <div class="col-sm-7">
+                        <input type="text" class="form-control" id="reg-username" required minlength="3" />
+                    </div>
+                </div>
+                <div class="mb-3 row">
+                    <label class="col-sm-5 col-form-label text-end">Contraseña</label>
+                    <div class="col-sm-7">
+                        <input type="password" class="form-control" id="reg-password" required minlength="6" />
+                    </div>
+                </div>
+                <div class="mb-3 row">
+                    <label class="col-sm-5 col-form-label text-end">Confirmar contraseña</label>
+                    <div class="col-sm-7">
+                        <input type="password" class="form-control" id="reg-confirm" required minlength="6" />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer justify-content-center gap-3 border-0 pb-4">
+                <button type="button" class="btn btn-primary px-4" id="btn-register">Registrar</button>
+                <button type="button" class="btn btn-outline-primary px-4" data-bs-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    $('#login-form').on('submit', function (e) {
+        e.preventDefault();
+        $.ajax({
+            url: '/api/auth/login',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                username: $('#login-username').val(),
+                password: $('#login-password').val()
+            }),
+            success: function (res) {
+                localStorage.setItem('jwt_token', res.token);
+                localStorage.setItem('jwt_user', JSON.stringify(res.user));
+                document.cookie = 'jwt_token=' + res.token + '; path=/; max-age=3600';
+                window.location.href = '/';
+            },
+            error: function (xhr) {
+                showAlert('#login-alert', xhr.responseJSON?.error || 'Credenciales inválidas.', 'danger');
+            }
+        });
+    });
+
+    $('#btn-register').on('click', function () {
+        const pwd = $('#reg-password').val();
+        const confirm = $('#reg-confirm').val();
+        if (pwd !== confirm) {
+            showAlert('#register-alert', 'Las contraseñas no coinciden.', 'danger');
+            return;
+        }
+        $.ajax({
+            url: '/api/auth/register',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+                username: $('#reg-username').val(),
+                password: pwd,
+                confirmPassword: confirm
+            }),
+            success: function (res) {
+                localStorage.setItem('jwt_token', res.token);
+                localStorage.setItem('jwt_user', JSON.stringify(res.user));
+                document.cookie = 'jwt_token=' + res.token + '; path=/; max-age=3600';
+                window.location.href = '/';
+            },
+            error: function (xhr) {
+                showAlert('#register-alert', xhr.responseJSON?.error || 'Error al registrar.', 'danger');
+            }
+        });
+    });
+
+    function showAlert(sel, msg, type) {
+        $(sel).removeClass('d-none alert-danger alert-success').addClass('alert-' + type).text(msg);
+    }
+</script>
+}

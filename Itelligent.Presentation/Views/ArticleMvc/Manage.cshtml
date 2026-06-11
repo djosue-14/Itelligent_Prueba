@@ -1,0 +1,205 @@
+@{
+    ViewData["Title"] = "Gestión de Artículos";
+    Layout = "_Layout";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="fw-bold text-primary mb-0">Gestión de artículos</h2>
+    <button class="btn btn-primary" id="btn-new-article">Nuevo artículo</button>
+</div>
+
+<div id="manage-alert" class="alert d-none"></div>
+
+<div class="table-responsive">
+    <table class="table table-bordered align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Autor</th>
+                <th>Título</th>
+                <th>Fecha de publicación</th>
+                <th class="text-center">Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="articles-tbody">
+            <tr><td colspan="4" class="text-center text-muted">Cargando...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="d-flex justify-content-center gap-2 mt-2" id="pagination-manage"></div>
+
+<!-- Modal Crear / Editar -->
+<div class="modal fade" id="articleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold text-primary" id="articleModalLabel">Nuevo Artículo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-alert" class="alert d-none"></div>
+                <input type="hidden" id="article-id" />
+                <div class="mb-3">
+                    <label class="form-label">Título</label>
+                    <input type="text" class="form-control" id="article-title" required minlength="3" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Resumen</label>
+                    <textarea class="form-control" id="article-summary" rows="2" required minlength="10"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Contenido</label>
+                    <textarea class="form-control" id="article-content" rows="6" required minlength="10"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btn-save-article">Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    let currentPage = 1;
+    const pageSize = 10;
+
+    function loadArticles(page) {
+        currentPage = page;
+        $.ajax({
+            url: '/api/articles?page=' + page + '&pageSize=' + pageSize,
+            method: 'GET',
+            success: function (data) {
+                renderTable(data.items);
+                renderPagination(data);
+            },
+            error: function () {
+                $('#articles-tbody').html('<tr><td colspan="4" class="text-center text-danger">Error al cargar artículos.</td></tr>');
+            }
+        });
+    }
+
+    function renderTable(items) {
+        if (!items || items.length === 0) {
+            $('#articles-tbody').html('<tr><td colspan="4" class="text-center text-muted">No hay artículos.</td></tr>');
+            return;
+        }
+        const me = currentUser();
+        let html = '';
+        items.forEach(function (a) {
+            const dt = new Date(a.publishedAt);
+            const fecha = dt.toLocaleDateString('es', { day:'2-digit', month:'2-digit', year:'numeric' })
+                + ' ' + dt.toLocaleTimeString('es', { hour:'2-digit', minute:'2-digit' });
+            const canModify = me && (me.role === 'Admin' || me.id === a.authorId);
+            const editBtn  = canModify ? `<button class="btn btn-sm btn-outline-warning me-1" onclick="editArticle(${a.id})">Editar</button>` : '';
+            const delBtn   = canModify ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteArticle(${a.id})">Eliminar</button>` : '';
+            html += `<tr>
+                <td>${escHtml(a.authorUsername)}</td>
+                <td>${escHtml(a.title)}</td>
+                <td>${fecha}</td>
+                <td class="text-center">
+                    <a href="/article/detail/${a.id}" class="btn btn-sm btn-outline-secondary me-1">Ver detalle</a>
+                    ${editBtn}${delBtn}
+                </td>
+            </tr>`;
+        });
+        $('#articles-tbody').html(html);
+    }
+
+    $('#btn-new-article').on('click', function () {
+        if (!isLoggedIn()) { window.location.href = '/auth/login'; return; }
+        $('#article-id').val('');
+        $('#article-title, #article-summary, #article-content').val('');
+        $('#articleModalLabel').text('Nuevo Artículo');
+        $('#modal-alert').addClass('d-none');
+        new bootstrap.Modal('#articleModal').show();
+    });
+
+    $('#btn-save-article').on('click', function () {
+        const id = $('#article-id').val();
+        const dto = {
+            title: $('#article-title').val().trim(),
+            summary: $('#article-summary').val().trim(),
+            content: $('#article-content').val().trim()
+        };
+        if (!dto.title || !dto.summary || !dto.content) {
+            showModalAlert('Todos los campos son obligatorios.', 'danger');
+            return;
+        }
+        $.ajax({
+            url: id ? '/api/articles/' + id : '/api/articles',
+            method: id ? 'PUT' : 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(dto),
+            headers: authHeader(),
+            success: function () {
+                bootstrap.Modal.getInstance('#articleModal').hide();
+                showPageAlert('Artículo guardado correctamente.', 'success');
+                loadArticles(currentPage);
+            },
+            error: function (xhr) {
+                showModalAlert(xhr.responseJSON?.error || 'Error al guardar.', 'danger');
+            }
+        });
+    });
+
+    function editArticle(id) {
+        $.ajax({
+            url: '/api/articles/' + id,
+            method: 'GET',
+            success: function (a) {
+                $('#article-id').val(a.id);
+                $('#article-title').val(a.title);
+                $('#article-summary').val(a.summary);
+                $('#article-content').val(a.content);
+                $('#articleModalLabel').text('Editar Artículo');
+                $('#modal-alert').addClass('d-none');
+                new bootstrap.Modal('#articleModal').show();
+            }
+        });
+    }
+
+    function deleteArticle(id) {
+        if (!confirm('¿Eliminar este artículo?')) return;
+        $.ajax({
+            url: '/api/articles/' + id,
+            method: 'DELETE',
+            headers: authHeader(),
+            success: function () {
+                showPageAlert('Artículo eliminado.', 'success');
+                loadArticles(currentPage);
+            },
+            error: function (xhr) {
+                showPageAlert(xhr.responseJSON?.error || 'Error al eliminar.', 'danger');
+            }
+        });
+    }
+
+    function renderPagination(data) {
+        let html = '';
+        if (data.hasPrevious)
+            html += `<button class="btn btn-outline-secondary" onclick="loadArticles(${data.page - 1})">« Anterior</button>`;
+        if (data.totalPages > 1)
+            html += `<span class="btn disabled">Página ${data.page} de ${data.totalPages}</span>`;
+        if (data.hasNext)
+            html += `<button class="btn btn-outline-secondary" onclick="loadArticles(${data.page + 1})">Siguiente »</button>`;
+        $('#pagination-manage').html(html);
+    }
+
+    function showModalAlert(msg, type) {
+        $('#modal-alert').removeClass('d-none alert-danger alert-success').addClass('alert-' + type).text(msg);
+    }
+
+    function showPageAlert(msg, type) {
+        $('#manage-alert').removeClass('d-none alert-danger alert-success').addClass('alert-' + type).text(msg);
+        setTimeout(function () { $('#manage-alert').addClass('d-none'); }, 4000);
+    }
+
+    function escHtml(str) {
+        return str ? $('<div>').text(str).html() : '';
+    }
+
+    loadArticles(1);
+</script>
+}

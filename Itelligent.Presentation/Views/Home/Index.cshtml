@@ -1,0 +1,69 @@
+@{
+    ViewData["Title"] = "Últimos Artículos";
+    Layout = "_Layout";
+}
+
+<h2 class="fw-bold text-primary mb-4">Últimos artículos</h2>
+
+<div id="articles-feed">
+    <p class="text-muted text-center">Cargando artículos...</p>
+</div>
+
+<div class="d-flex justify-content-center gap-2 mt-4" id="pagination-home"></div>
+
+@section Scripts {
+<script>
+    function loadHome(page) {
+        $.ajax({
+            url: '/api/articles?page=' + page + '&pageSize=5',
+            method: 'GET',
+            success: function (data) {
+                renderFeed(data.items);
+                renderPagination(data, page);
+            },
+            error: function () {
+                $('#articles-feed').html('<p class="text-danger">Error al cargar artículos.</p>');
+            }
+        });
+    }
+
+    function renderFeed(items) {
+        if (!items || items.length === 0) {
+            $('#articles-feed').html('<p class="text-muted text-center">No hay artículos publicados aún.</p>');
+            return;
+        }
+        let html = '';
+        items.forEach(function (a) {
+            const fecha = new Date(a.publishedAt).toLocaleDateString('es', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+            html += `<div class="card mb-3 shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title fw-bold text-primary">${escHtml(a.title)}</h5>
+                    <p class="text-muted mb-2"><em>${escHtml(a.authorUsername)} - ${fecha}</em></p>
+                    <p class="card-text">${escHtml(a.summary)}</p>
+                    <div class="text-end">
+                        <a href="/article/detail/${a.id}" class="btn btn-primary btn-sm">Ver artículo</a>
+                    </div>
+                </div>
+            </div>`;
+        });
+        $('#articles-feed').html(html);
+    }
+
+    function renderPagination(data, page) {
+        let html = '';
+        if (data.hasPrevious)
+            html += `<button class="btn btn-outline-secondary" onclick="loadHome(${page - 1})">Página anterior</button>`;
+        if (data.hasNext)
+            html += `<button class="btn btn-outline-secondary" onclick="loadHome(${page + 1})">Página siguiente</button>`;
+        $('#pagination-home').html(html);
+    }
+
+    function escHtml(str) {
+        return str ? $('<div>').text(str).html() : '';
+    }
+
+    loadHome(1);
+</script>
+}

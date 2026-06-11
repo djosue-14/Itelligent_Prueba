@@ -1,0 +1,57 @@
+## .NET / C#
+bin/
+obj/
+*.user
+*.suo
+*.vs/
+.vs/
+
+## Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]uild/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+## Publish output
+**/publish/
+**/PublishProfiles/
+
+## Visual Studio
+.vs/
+*.userprefs
+*.pidb
+*.svclog
+*.scc
+
+## Rider / JetBrains
+.idea/
+*.sln.iml
+
+## macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+## Environment / secrets
+*.env
+appsettings.Local.json
+appsettings.*.Local.json
+
+## Test results
+TestResults/
+coverage/
+*.coveragexml

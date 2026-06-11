@@ -1,0 +1,146 @@
+@{
+    ViewData["Title"] = "Detalle";
+    Layout = "_Layout";
+    var articleId = ViewBag.ArticleId;
+}
+
+<div id="detail-content">
+    <p class="text-muted text-center">Cargando artículo...</p>
+</div>
+
+<!-- Botón toggle centrado bajo el artículo -->
+<div class="text-center my-4">
+    <button class="btn btn-primary" id="btn-toggle-comments">Mostrar comentarios</button>
+</div>
+
+<!-- Sección de comentarios (oculta por defecto) -->
+<div id="comments-section" style="display:none">
+
+    <h5 class="fw-bold text-primary mb-3" id="comments-heading">Comentarios</h5>
+
+    <!-- Formulario -->
+    <div class="mb-3" id="comment-form-area">
+        <div id="comment-alert" class="alert d-none"></div>
+        <div id="comment-login-notice" class="alert alert-info d-none">
+            <a href="/auth/login">Inicia sesión</a> para agregar un comentario.
+        </div>
+        <div id="comment-input-wrapper" style="display:none">
+            <div class="d-flex gap-2 align-items-start">
+                <textarea class="form-control" id="comment-text" rows="3"
+                          placeholder="Escribe tu comentario aquí..."></textarea>
+                <button class="btn btn-primary px-4 align-self-end" id="btn-submit-comment">
+                    Publicar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <hr />
+
+    <!-- Lista de comentarios -->
+    <div id="comments-list"></div>
+
+</div>
+
+@section Scripts {
+<script>
+    const articleId = @articleId;
+    let commentsVisible = false;
+    let articleComments = [];
+
+    $.ajax({
+        url: '/api/articles/' + articleId,
+        method: 'GET',
+        success: function (a) {
+            document.title = a.title + ' - Itelligent';
+            articleComments = a.comments || [];
+
+            const fecha = new Date(a.publishedAt).toLocaleDateString('es', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+
+            $('#detail-content').html(
+                `<h2 class="fw-bold text-primary">${escHtml(a.title)}</h2>` +
+                `<p class="text-muted">${escHtml(a.authorUsername)} - ${fecha}</p>` +
+                `<div class="mt-3" style="white-space:pre-wrap">${escHtml(a.content)}</div>`
+            );
+
+            updateHeading();
+        },
+        error: function () {
+            $('#detail-content').html('<p class="text-danger">No se pudo cargar el artículo.</p>');
+        }
+    });
+
+    $('#btn-toggle-comments').on('click', function () {
+        commentsVisible = !commentsVisible;
+        if (commentsVisible) {
+            renderComments(articleComments);
+            if (isLoggedIn()) {
+                $('#comment-input-wrapper').show();
+                $('#comment-login-notice').addClass('d-none');
+            } else {
+                $('#comment-input-wrapper').hide();
+                $('#comment-login-notice').removeClass('d-none');
+            }
+            $('#comments-section').slideDown(200);
+            $(this).text('Ocultar comentarios');
+        } else {
+            $('#comments-section').slideUp(200);
+            $(this).text('Mostrar comentarios');
+        }
+    });
+
+    function renderComments(comments) {
+        if (!comments || comments.length === 0) {
+            $('#comments-list').html('<p class="text-muted">Sin comentarios aún.</p>');
+            return;
+        }
+        let html = '';
+        comments.forEach(function (c) {
+            const fecha = new Date(c.publishedAt).toLocaleDateString('es', {
+                day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+            html += `<div class="mb-3">
+                <p class="mb-1 text-muted"><em>Publicado por ${escHtml(c.username)} el ${fecha}</em></p>
+                <p class="mb-0">${escHtml(c.text)}</p>
+                <hr />
+            </div>`;
+        });
+        $('#comments-list').html(html);
+    }
+
+    function updateHeading() {
+        $('#comments-heading').text('Comentarios (' + articleComments.length + ')');
+    }
+
+    $('#btn-submit-comment').on('click', function () {
+        const text = $('#comment-text').val().trim();
+        if (!text) return;
+        $.ajax({
+            url: '/api/articles/' + articleId + '/comments',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ text: text }),
+            headers: authHeader(),
+            success: function (c) {
+                articleComments.push(c);
+                updateHeading();
+                renderComments(articleComments);
+                $('#comment-text').val('');
+                $('#comment-alert').removeClass('d-none alert-danger').addClass('alert-success')
+                    .text('Comentario publicado.');
+                setTimeout(function () { $('#comment-alert').addClass('d-none'); }, 3000);
+            },
+            error: function (xhr) {
+                $('#comment-alert').removeClass('d-none alert-success').addClass('alert-danger')
+                    .text(xhr.responseJSON?.error || 'Error al publicar comentario.');
+            }
+        });
+    });
+
+    function escHtml(str) {
+        return str ? $('<div>').text(str).html() : '';
+    }
+</script>
+}
